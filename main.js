@@ -25,8 +25,9 @@
 /**
  * Refine Project
  * @author r3inbowari
- * @update 2021/01/19
- * @version 1.0.0
+ * @create 2021/01/19
+ * @update 2021/01/22
+ * @version 1.1.0
  */
 
 /**
@@ -97,6 +98,13 @@ var CONFIG_ROLES = [
 	{ INDEX_STORESKILL: FIFTH_SKILL, INDEX_BUTTERFLY: SECOND_PACK }
 ]
 
+// 启动游戏等待时间
+var CONFIG_WAIT_TIME_RUNRO = 60;
+// 选角色等待时间
+var CONFIG_WAIT_TIME_GAMESTART = 20;
+// 正式开始游戏等待时间
+var CONFIG_WAIT_TIME_ROLESTART = 50;
+
 /**
  * 接口对象
  */
@@ -154,6 +162,9 @@ var Interface = {
 	}
 }
 
+/**
+ * 日志控制台
+ */
 var cmd = {
 	show() {
 		console.show();
@@ -186,10 +197,6 @@ var cmd = {
 	},
 }
 
-function rand(min, max) {
-	return parseInt(Math.random() * (max - min + 1) + min, 10);
-}
-
 /**
  * format原型插入
  * @param {{string}} fmt format格式
@@ -210,39 +217,91 @@ Date.prototype.Format = function (fmt) {
 	return fmt;
 }
 
+// 全局系统调用控制台
+var sh = new Shell(true);
+
+// 看门狗
+var isDead = false;
+
+// 交易密码是否已经写入
+var isVerify = false;
+
+// 是否需要使用回城翅膀, 理论上在脚本走完第一轮后不再需要执行回城操作
+// 为三个角色添加flag参数
+var needBackHome = [0, 0, 0];
+
+// 商店购买计数器, 用于计算是否应该回收zeny
+var cntRefreshTable = 0;
+
+// 下一个打开的角色
+var nextRole = CONFIG_ROLE_INDEX;
+
+// 当前角色
+var currentRole = CONFIG_ROLE_INDEX;
+
+// 用户注册相关变量
+var bak = 1 << 5;
+var cpp = 1 << 1;
+var const1 = "脚本已注册，服务器验证通过";
+var const2 = "脚本未注册，请联系作者购买授权(r3inbowari@gmail.com)";
+
 /**
- * 使用地图前往某个给定坐标(x, y), 并且等待n毫秒
+ * 范围随机数生成函数
+ * @param {int} min 最小值
+ * @param {int} max 最大值
+ */
+function rand(min, max) {
+	return parseInt(Math.random() * (max - min + 1) + min, 10);
+}
+
+/**
+ * 系统调用
+ * @param {string} common 调用命令
+ */
+function systemCall(common) {
+	// var sh = new Shell(true);
+	sh.exec(common);
+	// 发送 kill waiting 信号量
+	// sh.exitAndWaitFor();
+	sleep(2000);
+	// sh.exit();
+}
+
+/**
+ * 全屏截图
+ * @param {string} name 截图临时保存名称
+ */
+function systemCallRootGetScreen(name) {
+	var src = CONFIG_PUBLIC_PATH + name + '.png';
+	systemCall('screencap -p ' + src);
+	return images.read(src);
+}
+
+/**
+ * 文件系统图片获取
+ * @param {string} name 
+ */
+function getPicture(name) {
+	var src = CONFIG_PUBLIC_PATH + name + '.png';
+	return images.read(src);
+}
+
+/**
+ * 截取区域快照并保存文件到文件系统
+ * @param {string} name 保存到文件系统的名称
  * @param {int} x 横坐标
  * @param {int} y 纵坐标
- * @param {int} n 毫秒
+ * @param {int} w 宽度
+ * @param {int} h 高度
  */
-function aimMap(x, y, n) {
-	Interface.tap(1500, 120);
-	Interface.goto(x, y);
-	Interface.tap(1500, 120);
-	sleep(n);
-}
-
-function openStore() {
-	console.log('sadas');
-	if (CONFIG_OPEN_STORE_WAY === SKILL) {
-		// 通过技能的方式打开交易所
-		useObject(CONFIG_INDEX_STORESKILL, SECOND * 2000);
-	} else {
-		// 通过步行的方式打开交易所
-		// 前往BigCat交易所NPC地点, 并且等待25秒(普隆德拉最高跑步耗时)
-		aimMap(CONFIG_COORD_STORE_NPC.X, CONFIG_COORD_STORE_NPC.Y, SECOND * 25);
-		// 点击NPC
-		Interface.tap(700, 390);
-		sleep(1000);
-		// NPC对话打开
-		Interface.tap(1400, 600);
-	}
-	sleep(3000);
-}
-
-function closeStore() {
-	Interface.tap(1430, 56);
+function setPicture(name, x, y, w, h) {
+	var src = CONFIG_PUBLIC_PATH + name + '.png';
+	console.log(src);
+	systemCall('screencap -p ' + src);
+	var img = images.read(src);
+	console.log(img);
+	var clip = images.clip(img, x, y, w, h);
+	images.save(clip, CONFIG_PUBLIC_PATH + name + ".png");
 }
 
 /**
@@ -269,56 +328,38 @@ function initSystem() {
 		cmd.show();
 }
 
-var sh = new Shell(true);
-
 /**
- * 系统调用
- * @param {string} common 调用命令
- */
-function systemCall(common) {
-	// var sh = new Shell(true);
-	sh.exec(common);
-	// 发送 kill waiting 信号量
-	// sh.exitAndWaitFor();
-}
-
-/**
- * 全屏截图
- * @param {string} name 截图临时保存名称
- */
-function systemCallRootGetScreen(name) {
-	var src = CONFIG_PUBLIC_PATH + name + '.png';
-	systemCall('screencap -p ' + src);
-	sleep(1000);
-	return images.read(src);
-}
-
-/**
- * 文件系统图片获取
- * @param {string} name 
- */
-function getPicture(name) {
-	var src = CONFIG_PUBLIC_PATH + name + '.png';
-	return images.read(src);
-}
-
-/**
- * 截取区域快照并保存文件到文件系统
- * @param {string} name 保存到文件系统的名称
+ * 使用地图前往某个给定坐标(x, y), 并且等待n毫秒
  * @param {int} x 横坐标
  * @param {int} y 纵坐标
- * @param {int} w 宽度
- * @param {int} h 高度
+ * @param {int} n 毫秒
  */
-function setPicture(name, x, y, w, h) {
-	var src = CONFIG_PUBLIC_PATH + name + '.png';
-	console.log(src);
-	systemCall('screencap -p ' + src);
-	sleep(1000);
-	var img = images.read(src);
-	console.log(img);
-	var clip = images.clip(img, x, y, w, h);
-	images.save(clip, CONFIG_PUBLIC_PATH + name + ".png");
+function aimMap(x, y, n) {
+	Interface.tap(1500, 120);
+	Interface.goto(x, y);
+	Interface.tap(1500, 120);
+	sleep(n);
+}
+
+/**
+ * 使用技能或寻路开启商店逻辑
+ */
+function openStore() {
+	console.log('open store');
+	if (CONFIG_OPEN_STORE_WAY === SKILL) {
+		// 通过技能的方式打开交易所
+		useObject(CONFIG_INDEX_STORESKILL, SECOND * 2000);
+	} else {
+		// 通过步行的方式打开交易所
+		// 前往BigCat交易所NPC地点, 并且等待25秒(普隆德拉最高跑步耗时)
+		aimMap(CONFIG_COORD_STORE_NPC.X, CONFIG_COORD_STORE_NPC.Y, SECOND * 25);
+		// 点击NPC
+		Interface.tap(700, 390);
+		sleep(1000);
+		// NPC对话打开
+		Interface.tap(1400, 600);
+	}
+	sleep(3000);
 }
 
 /**
@@ -441,7 +482,7 @@ function test_useObject() {
 	useObject(UNDEFINE_INDEX, 2000);
 }
 
-var cntRefreshTable = 0;
+
 /**
  * 物体识别与购买
  * @param item 物品参数 
@@ -499,15 +540,14 @@ function objectDetect(item) {
 			sleep(2000);
 
 			// 检查是否需要验证
-			if (CONFIG_PASSWORD !== '') {
+			if (CONFIG_PASSWORD != '') {
 				passwordVerify();
-
 			}
 
 			// 检查是否还有zeny
 			var zeny = findImageBySnapshot('goumai');
 			if (zeny != null) {
-				toast("没钱了");
+				toast("没钱了, 等待退出");
 				return false;
 			}
 			// 
@@ -549,17 +589,10 @@ function test_userLogic() {
 	} catch (e) {
 		cmd.warn(e.message);
 	}
-	// 点击取消按钮
-	Back()
-	sleep(2000);
-	// 关闭商店
-	Back()
-	sleep(2000);
-	// 退出
-	Back()
-	sleep(2000);
-	// 确认退出
-	Interface.tap(950, 420)
+
+	// 停止运行
+	killApp('com.xd.ro.roapk');
+	toast("已退出RO, 10秒后重启");
 	sleep(SECOND * 10);
 }
 
@@ -601,20 +634,32 @@ function searchItem(item) {
  * 使用蝴蝶翅膀
  */
 function backHome() {
-	useObject(CONFIG_INDEX_BUTTERFLY, SECOND * 8);
+	// 判断是否需要使用回城技能
+	if (needBackHome[currentRole] === 0) {
+		useObject(CONFIG_INDEX_BUTTERFLY, SECOND * 8);
+		needBackHome[currentRole] = 1;
+	}
 }
 
-// 下一个打开的角色
-var nextRole = CONFIG_ROLE_INDEX;
+/**
+ * 停止APP
+ * @param {string} packageName 包名
+ */
+function killApp(packageName) {
+	sleep(1000);
+	systemCall("am force-stop " + packageName);
+}
 
 function openRO() {
+	// 启动RO
 	app.launch('com.xd.ro.roapk');
-	sleep(SECOND * 30);
+	sleep(SECOND * CONFIG_WAIT_TIME_RUNRO);
 
+	// 点击开始游戏
 	Interface.tap(800, 650);
-	sleep(SECOND * 15);
+	sleep(SECOND * CONFIG_WAIT_TIME_GAMESTART);
 
-	// load configuration
+	// 加载当前角色配置参数
 	if (CONFIG_ROLES.length < 3) {
 		cmd.warn('please add your roles configuration!')
 	} else {
@@ -622,28 +667,28 @@ function openRO() {
 		CONFIG_INDEX_BUTTERFLY = CONFIG_ROLES[nextRole].INDEX_BUTTERFLY;
 	}
 
-	// select
+	// 选择角色
 	if (nextRole === FIRST_ROLE) {
 		Interface.tap(125, 200);
-		nextRole++;
+		currentRole = FIRST_ROLE;
+		nextRole = SECOND_ROLE;
 	} else if (nextRole === SECOND_ROLE) {
 		Interface.tap(125, 335);
-		nextRole++;
+		currentRole = SECOND_ROLE;
+		nextRole = THIRD_ROLE;
 	} else if (nextRole === THIRD_ROLE) {
 		Interface.tap(125, 465);
+		currentRole = THIRD_ROLE;
 		nextRole = FIRST_ROLE;
 	}
+	sleep(SECOND * 3);
 
-	sleep(SECOND * 2);
+	// 点击进入游戏
 	Interface.tap(1400, 820);
-	sleep(SECOND * 60);
+	sleep(SECOND * CONFIG_WAIT_TIME_ROLESTART);
 	Back();
 }
 
-var bak = 1 << 5;
-var cpp = 1 << 1;
-var const1 = "脚本已注册，服务器验证通过";
-var const2 = "脚本未注册，请联系作者购买授权(r3inbowari@gmail.com)";
 function verify(callback) {
 	cmd.show();
 	var url = "http://r3inbowari.top:5560/verify?id=" + device.getAndroidId();
@@ -709,25 +754,26 @@ function unitTest() {
 	// verify();
 }
 
-var isVerify = false;
 function passwordVerify() {
-	// 粘贴密码
-	setClip(CONFIG_PASSWORD);
-	// 进入密码输入框
-	Interface.tap(800, 410);
-	sleep(2000);
-	// 长按密码输入框
-	Interface.longClick(100, 835);
-	sleep(2000);
-	// 点击粘贴
-	Interface.goto(100, 835);
-	sleep(2000);
-	// 退出密码输入框
-	Interface.goto(1500, 835);
-	sleep(2000);
-	// 点击确认
-	Interface.goto(800, 500);
-	sleep(2000);
+	if (!isVerify) {
+		// 粘贴密码
+		setClip(CONFIG_PASSWORD);
+		// 进入密码输入框
+		Interface.tap(800, 410);
+		sleep(2000);
+		// 长按密码输入框
+		Interface.longClick(100, 835);
+		sleep(2000);
+		// 点击粘贴
+		Interface.goto(100, 835);
+		sleep(2000);
+		// 退出密码输入框
+		Interface.goto(1500, 835);
+		sleep(2000);
+		// 点击确认
+		Interface.goto(800, 500);
+		sleep(2000);
+	}
 	isVerify = true;
 }
 
@@ -769,7 +815,6 @@ function loop() {
 	// exit();
 }
 
-var isDead = false;
 /**
  * 程序入口点
  */

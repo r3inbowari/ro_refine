@@ -27,7 +27,7 @@
  * @author r3inbowari
  * @create 2021/01/19
  * @update 2021/01/22
- * @version 1.1.3
+ * @version 1.1.4
  */
 
 /**
@@ -532,7 +532,7 @@ function objectDetect(item) {
 			Interface.tap(220, 105);
 			sleep(1000);
 
-			if (CONFIG_BUY_MODE) {
+			if (CONFIG_BUY_MODE === MODE_BUY_REFINE) {
 				// 使用精炼升序
 				// 降序排列刷新
 				Interface.tap(1050, 110)
@@ -540,7 +540,7 @@ function objectDetect(item) {
 				// 升序排列刷新
 				Interface.tap(1050, 110)
 				sleep(2000);
-			} else if (CONFIG_BUY_MODE) {
+			} else if (CONFIG_BUY_MODE === MODE_BUY_PRISE) {
 				// 使用价格升序
 				// 降序排列刷新
 				Interface.tap(1260, 110);
@@ -548,7 +548,7 @@ function objectDetect(item) {
 				// 升序排列刷新
 				Interface.tap(1260, 110);
 				sleep(2000);
-			} else if (CONFIG_BUY_MODE) {
+			} else if (CONFIG_BUY_MODE === MODE_BUY_HYBIRD) {
 				// 混合模式
 				if (nextBuyMode === 0) {
 					nextBuyMode = 1;

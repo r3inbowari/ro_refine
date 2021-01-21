@@ -27,7 +27,7 @@
  * @author r3inbowari
  * @create 2021/01/19
  * @update 2021/01/22
- * @version 1.1.0
+ * @version 1.1.3
  */
 
 /**
@@ -64,6 +64,10 @@ const THIRD_ROLE = 2;
 
 const SECOND = 1000;
 
+const MODE_BUY_REFINE = 0;
+const MODE_BUY_PRISE = 1;
+const MODE_BUY_HYBIRD = 2;
+
 /**
  * customizable configuration values.
  */
@@ -90,13 +94,21 @@ var CONFIG_SEARCH_ITEMS = [
 // 交易密码
 var CONFIG_PASSWORD = 'Qq159463';
 // 首个加载角色索引
-var CONFIG_ROLE_INDEX = FIRST_ROLE;
+var CONFIG_ROLE_INDEX = THIRD_ROLE;
 // 角色数据加载, 请按顺序填入三个角色的对应参数
 var CONFIG_ROLES = [
 	{ INDEX_STORESKILL: FIFTH_SKILL, INDEX_BUTTERFLY: SECOND_PACK },
 	{ INDEX_STORESKILL: FIFTH_SKILL, INDEX_BUTTERFLY: SECOND_PACK },
 	{ INDEX_STORESKILL: FIFTH_SKILL, INDEX_BUTTERFLY: SECOND_PACK }
 ]
+
+// 每购买8次进行一次zeny回收
+var CONFIG_REFRESH_TABLE_FREQ = 8;
+// 购买模式 选择不同的模式用以应对工作室的打赏压栈行为, 可选模式(默认是价格升序模式):
+// MODE_BUY_PRISE 价格升序模式 缺点: 无法应对低价打赏行为 优点: 切换周期快
+// MODE_BUY_REFINE 精炼升序模式 缺点: 无法应对高价打赏行为 优点: 切换周期快
+// MODE_BUY_HYBIRD 混合模式(价格升序模式 + 精炼升序模式) 缺点: 切换周期变长 优点: 但是应对工作室最有效
+var CONFIG_BUY_MODE = MODE_BUY_PRISE;
 
 // 启动游戏等待时间
 var CONFIG_WAIT_TIME_RUNRO = 60;
@@ -238,6 +250,9 @@ var nextRole = CONFIG_ROLE_INDEX;
 
 // 当前角色
 var currentRole = CONFIG_ROLE_INDEX;
+
+// 下一次购买模式
+var nextBuyMode = 0;
 
 // 用户注册相关变量
 var bak = 1 << 5;
@@ -482,7 +497,6 @@ function test_useObject() {
 	useObject(UNDEFINE_INDEX, 2000);
 }
 
-
 /**
  * 物体识别与购买
  * @param item 物品参数 
@@ -503,11 +517,11 @@ function objectDetect(item) {
 	// item.Time次迭代
 	for (let index = 0; index < item.Time; index++) {
 		// setPicture('fuchouzhe', 555, 360, 65, 30);
-		if (cntRefreshTable > 10) {
+		if (cntRefreshTable > CONFIG_REFRESH_TABLE_FREQ) {
 			// 刷新时机满足
 			// 点击交易记录
 			Interface.tap(550, 105);
-			sleep(2000);
+			sleep(1000);
 			// 点击交易记录
 			Interface.tap(1350, 835);
 			sleep(1000);
@@ -516,12 +530,46 @@ function objectDetect(item) {
 			sleep(1000);
 			// 点击我要购买
 			Interface.tap(220, 105);
-			// 降序排列刷新
-			Interface.tap(1050, 110)
-			sleep(2000);
-			// 升序排列刷新
-			Interface.tap(1050, 110)
-			sleep(2000);
+			sleep(1000);
+
+			if (CONFIG_BUY_MODE) {
+				// 使用精炼升序
+				// 降序排列刷新
+				Interface.tap(1050, 110)
+				sleep(2000);
+				// 升序排列刷新
+				Interface.tap(1050, 110)
+				sleep(2000);
+			} else if (CONFIG_BUY_MODE) {
+				// 使用价格升序
+				// 降序排列刷新
+				Interface.tap(1260, 110);
+				sleep(2000);
+				// 升序排列刷新
+				Interface.tap(1260, 110);
+				sleep(2000);
+			} else if (CONFIG_BUY_MODE) {
+				// 混合模式
+				if (nextBuyMode === 0) {
+					nextBuyMode = 1;
+					// 使用精炼升序
+					// 降序排列刷新
+					Interface.tap(1050, 110)
+					sleep(2000);
+					// 升序排列刷新
+					Interface.tap(1050, 110)
+					sleep(2000);
+				} else {
+					nextBuyMode = 0;
+					// 使用价格升序
+					// 降序排列刷新
+					Interface.tap(1260, 110);
+					sleep(2000);
+					// 升序排列刷新
+					Interface.tap(1260, 110);
+					sleep(2000);
+				}
+			}
 			cntRefreshTable = 0;
 		}
 		cntRefreshTable++;
@@ -625,9 +673,12 @@ function searchItem(item) {
 	// 点击实际配置位置
 	Interface.tap(item.X, item.Y)
 	sleep(2000);
-	// 升序排列
-	Interface.tap(1050, 110)
-	sleep(4000);
+	// 初始化价格升序
+	Interface.tap(1260, 110);
+	sleep(2000);
+	// 初始化精炼升序
+	Interface.tap(1050, 110);
+	sleep(2000);
 }
 
 /**
